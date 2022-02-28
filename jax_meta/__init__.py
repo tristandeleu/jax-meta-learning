@@ -1,0 +1,1 @@
+from jax_meta.version import VERSION as __version__
