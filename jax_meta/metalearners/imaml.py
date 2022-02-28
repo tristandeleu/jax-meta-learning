@@ -2,7 +2,7 @@ import jax.numpy as jnp
 import optax
 import jax
 
-from jax import vmap, grad, tree_util, jit
+from jax import vmap, grad, tree_util, jit, lax
 from functools import partial
 
 from jax_meta.metalearners.base import MetaLearnerState
@@ -27,14 +27,21 @@ class iMAML(MAML):
         self.cg_steps = cg_steps
 
     def adapt(self, init_params, state, inputs, targets, args):
-        # Adaptation using gradient descent (same as MAML)
-        params, logs = super().adapt(init_params, state, inputs, targets, args)
+        loss_grad = grad(self.loss, has_aux=True)
+        # Gradient descent with proximal regularization
+        gradient_descent = lambda p, p0, g: p - self.alpha * (g + self.lambda_ * (p - p0))
+        def _gradient_update(params, _):
+            # Do not update the state during adaptation
+            grads, (_, logs) = loss_grad(params, state, inputs, targets, args)
+            params = tree_util.tree_map(gradient_descent, params, init_params, grads)
+            return params, logs
 
-        # Proximal regularization
-        add_regularization = lambda p, p0: p - self.alpha * self.lambda_ * (p - p0)
-        params = tree_util.tree_multimap(add_regularization, params, init_params)
-
-        return params, logs
+        return lax.scan(
+            _gradient_update,
+            init_params,
+            None,
+            length=self.num_steps
+        )
 
     def hessian_vector_product(self, params, state, inputs, targets, args):
         train_loss = lambda primals: self.loss(primals, state, inputs, targets, args)[0]
