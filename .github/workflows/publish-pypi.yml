@@ -1,6 +1,9 @@
 name: Test & Publish to PyPI
 
-on: push
+on: 
+  push:
+    paths:
+      - 'jax_meta/version.py'
 
 jobs:
   test:
@@ -27,23 +30,10 @@ jobs:
       - name: Run tests
         run: python -m pytest tests/
 
-  version:
-    name: Check version
-    runs-on: ubuntu-latest
-    needs: test
-    outputs:
-      has_changed: ${{ steps.check-version.outputs.count }}
-
-    steps:
-      - uses: actions/checkout@v2
-      - id: check-version
-        run: echo "::set-output name=count::$(git diff --name-only origin/master HEAD | grep jax_meta/version.py | wc -l)"
-
   publish:
     name: Publish to PyPI
     runs-on: ubuntu-latest
-    needs: version
-    if: ${{ fromJSON(needs.version.outputs.has_changed) > 0 }}
+    needs: test
 
     steps:
       - uses: actions/checkout@v2
