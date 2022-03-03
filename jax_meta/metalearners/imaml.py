@@ -57,14 +57,17 @@ class iMAML(MAML):
         @partial(vmap, in_axes=(None, None, 0, 0))
         def _grad_outer_loss(params, state, train, test):
             adapted_params, inner_logs = self.adapt(
-                params, train.inputs, train.targets)
+                params, state, train.inputs, train.targets, args
+            )
 
             # Compute the gradient wrt. the adapted parameters
             grads, (state, outer_logs) = grad(self.loss, has_aux=True)(
                 adapted_params, state, test.inputs, test.targets, args)
 
             # Compute the meta-gradient using Conjugate Gradient
-            hvp_fn = self.hessian_vector_product(adapted_params, train.inputs, train.targets)
+            hvp_fn = self.hessian_vector_product(
+                adapted_params, state, train.inputs, train.targets, args
+            )
             outer_grads, _ = jax.scipy.sparse.linalg.cg(hvp_fn, grads, maxiter=self.cg_steps)
 
             return outer_grads, inner_logs, outer_logs, state
