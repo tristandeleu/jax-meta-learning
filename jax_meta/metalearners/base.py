@@ -5,14 +5,9 @@ from abc import ABC, abstractmethod
 from jax import jit, grad, tree_util, vmap
 from functools import partial
 from collections import namedtuple
-from simple_parsing.helpers import Serializable
 
 
 MetaLearnerState = namedtuple('MetaLearnerState', ['model', 'optimizer'])
-
-
-class Arguments(Serializable):
-    pass
 
 
 class MetaLearner(ABC):
@@ -21,6 +16,10 @@ class MetaLearner(ABC):
 
     @abstractmethod
     def loss(self, params, state, inputs, targets, args):
+        pass
+
+    @abstractmethod
+    def adapt(self, params, state, inputs, targets, args):
         pass
 
     @abstractmethod
