@@ -75,8 +75,8 @@ class iMAML(MAML):
         state = tree_util.tree_map(partial(jnp.mean, axis=0), states)
         
         logs = {
-            **{f'before/{k}': v for (k, v) in inner_logs.items()},
-            **{f'after/{k}': v for (k, v) in outer_logs.items()}
+            **{f'inner/{k}': v for (k, v) in inner_logs.items()},
+            **{f'outer/{k}': v for (k, v) in outer_logs.items()}
         }
         return outer_grads, (state, logs)
 
