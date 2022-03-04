@@ -2,12 +2,12 @@ import jax.numpy as jnp
 import optax
 
 from abc import ABC, abstractmethod
-from jax import jit, grad, tree_util, vmap
+from jax import jit, grad, tree_util, vmap, random
 from functools import partial
 from collections import namedtuple
 
 
-MetaLearnerState = namedtuple('MetaLearnerState', ['model', 'optimizer'])
+MetaLearnerState = namedtuple('MetaLearnerState', ['model', 'optimizer', 'key'])
 
 
 class MetaLearner(ABC):
@@ -48,7 +48,8 @@ class MetaLearner(ABC):
         updates, opt_state = self.optimizer.update(grads, state.optimizer, params)
         params = optax.apply_updates(params, updates)
 
-        state = MetaLearnerState(model=model_state, optimizer=opt_state)
+        # TODO: The key will eventually be split and used in various methods
+        state = MetaLearnerState(model=model_state, optimizer=opt_state, key=state.key)
 
         return params, state, logs
 
@@ -74,10 +75,12 @@ class MetaLearner(ABC):
 
     def init(self, key, optimizer, *args, **kwargs):
         self._optimizer = optimizer
-        params, model_state = self.meta_init(key, *args, **kwargs)
+        key, subkey = random.split(key)
+        params, model_state = self.meta_init(subkey, *args, **kwargs)
         state = MetaLearnerState(
             model=model_state,
-            optimizer=self.optimizer.init(params)
+            optimizer=self.optimizer.init(params),
+            key=key
         )
         return params, state
 
