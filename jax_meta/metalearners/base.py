@@ -60,6 +60,7 @@ class MetaLearner(ABC):
                              'model, you must call the `init` function.')
         return self._optimizer
 
+    @partial(jit, static_argnums=(0, 5))
     def batch_outer_loss(self, params, state, train, test, args):
         outer_loss = vmap(self.outer_loss, in_axes=(None, None, 0, 0, None))
         outer_losses, states, inner_logs, outer_logs = outer_loss(
@@ -90,10 +91,15 @@ class MetaLearner(ABC):
                 'got an infinite dataset. You must set the `size` argument '
                 'when creating the dataset.')
 
-        outer_loss = jit(self.batch_outer_loss, static_argnums=(4,))
         results = None
         for i, batch in enumerate(dataset.reset()):
-            _, (_, logs) = outer_loss(params, state.model, batch['train'], batch['test'], args)
+            _, (_, logs) = self.batch_outer_loss(
+                params,
+                state.model,
+                batch['train'],
+                batch['test'],
+                args
+            )
             logs = tree_util.tree_map(lambda arr: jnp.mean(arr, axis=0), logs)
 
             if results is None:
