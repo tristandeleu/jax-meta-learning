@@ -2,5 +2,6 @@ jax
 jaxlib
 tqdm
 simple-parsing
-git+https://github.com/deepmind/dm-haiku
-git+https://github.com/deepmind/optax
+dm-haiku
+optax
+jaxopt

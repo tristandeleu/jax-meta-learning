@@ -49,7 +49,8 @@ setup(
         'simple-parsing',
         'Pillow>=7.0.0',
         'dm-haiku',
-        'optax'
+        'optax',
+        'jaxopt',
     ],
     package_data={'jax_meta': ['jax_meta/datasets/assets/*']},
     include_package_data=True,
