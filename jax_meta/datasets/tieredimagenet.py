@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 
 from jax_meta.datasets.miniimagenet import MiniImagenet
+import jax_meta.datasets.transforms.functional as F
 
 
 class TieredImagenet(MiniImagenet):
@@ -28,6 +29,11 @@ class TieredImagenet(MiniImagenet):
                     offset += labels.shape[0]
             self._data = np.concatenate(arrays, axis=0)
             self._labels2indices = labels2indices
+
+            # Normalize the data
+            self._data = self._data.astype(np.float32) / 255.
+            if not self._data_augmentation:
+                self._data = F.normalize(self._data, self._mean, self._std)
         return self
 
     @property

@@ -63,10 +63,10 @@ class Omniglot(MetaDataset):
 
             self._data = np.concatenate(data, axis=0)
             self._labels2indices = labels2indices_aug
-        return self
 
-    def transform(self, data):
-        return 1. - data.astype(np.float32) / 255.
+            # Transform data
+            self._data = 1. - self._data.astype(np.float32) / 255.
+        return self
 
     @property
     def split_filenames(self):

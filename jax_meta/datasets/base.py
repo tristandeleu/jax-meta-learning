@@ -96,17 +96,20 @@ class MetaDataset(ABC):
         return self.size
 
     def __iter__(self):
+        shape = self.data.shape[1:]
+
         while (self.size is None) or (self.num_samples < self.size):
             class_indices, indices, targets = self.get_indices()
-            data = self.transform(self.data[indices])
+            train_data = self.transform(self.data[indices[..., :self.shots]])
+            test_data = self.transform(self.data[indices[..., self.shots:]])
 
             train = Dataset(
-                inputs=data[:, :, :self.shots].reshape((self.batch_size, -1) + data.shape[3:]),
+                inputs=train_data.reshape((self.batch_size, -1) + shape),
                 targets=targets.repeat(self.shots, axis=1),
                 infos={'labels': class_indices, 'indices': indices[..., :self.shots]}
             )
             test = Dataset(
-                inputs=data[:, :, self.shots:].reshape((self.batch_size, -1) + data.shape[3:]),
+                inputs=test_data.reshape((self.batch_size, -1) + shape),
                 targets=targets.repeat(self.test_shots, axis=1),
                 infos={'labels': class_indices, 'indices': indices[..., self.shots:]}
             )

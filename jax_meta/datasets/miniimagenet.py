@@ -1,5 +1,4 @@
 import numpy as np
-import os
 import pickle
 
 from jax_meta.datasets.base import MetaDataset
@@ -27,13 +26,13 @@ class MiniImagenet(MetaDataset):
         super().__init__(root, batch_size, shots=shots, ways=ways,
             test_shots=test_shots, size=size, split=split, seed=seed,
             download=download)
-        self.load_data()
         if data_augmentation is None:
             self._data_augmentation = ('train' in self.splits)
         else:
             self._data_augmentation = data_augmentation
         self._mean = np.array([120.39586422, 115.59361427, 104.54012653]) / 255.
         self._std = np.array([70.68188272, 68.27635443, 72.54505529]) / 255.
+        self.load_data()
 
     def load_data(self):
         if self._data is None:
@@ -51,20 +50,19 @@ class MiniImagenet(MetaDataset):
                     offset += data['data'].shape[0]
             self._data = np.concatenate(arrays, axis=0)
             self._labels2indices = labels2indices
+
+            # Normalize the data
+            self._data = self._data.astype(np.float32) / 255.
+            if not self._data_augmentation:
+                self._data = F.normalize(self._data, self._mean, self._std)
         return self
 
     def transform(self, data):
         if self._data_augmentation:
             data = F.random_horizontal_flip(data, rng=self.rng)
-            data = data.astype(np.float32) / 255.
             data = F.color_jitter(data, brightness=0.4, contrast=0.4, saturation=0.4, rng=self.rng)
             data = F.normalize(data, self._mean, self._std)
             data = F.random_crop(data, size=84, padding=8, rng=self.rng)
-
-        else:
-            data = data.astype(np.float32) / 255.
-            data = F.normalize(data, self._mean, self._std)
-
         return data
 
     @property
