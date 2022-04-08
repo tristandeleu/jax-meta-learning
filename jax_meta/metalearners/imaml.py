@@ -23,7 +23,7 @@ class iMAML(MAML):
         self.cg_steps = cg_steps
 
     def adapt(self, init_params, state, inputs, targets, args):
-        def inner_loss(params, init_params):
+        def inner_loss(params, init_params, state, inputs, targets):
             loss, logs = self.loss(params, state, inputs, targets, args)
             proximal_term = jax.tree_util.tree_map(
                 lambda p, p0: 0.5 * jnp.sum((p - p0) ** 2),
@@ -51,6 +51,14 @@ class iMAML(MAML):
             jit=True,
             unroll=False,
         )
-        params, state = solver.run(init_params, init_params)
 
+        # TODO: jaxopt does not differentiate through the initial parameters
+        # (1st arg). Currently, this does not return the correct meta-gradients.
+        params, state = solver.run(
+            init_params,
+            init_params,
+            state,
+            inputs,
+            targets,
+        )
         return (params, state.aux[1])
