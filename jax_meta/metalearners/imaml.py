@@ -23,7 +23,7 @@ class iMAML(MAML):
         self.cg_steps = cg_steps
 
     def adapt(self, init_params, state, inputs, targets, args):
-        def inner_loss(params):
+        def inner_loss(params, init_params):
             loss, logs = self.loss(params, state, inputs, targets, args)
             proximal_term = jax.tree_util.tree_map(
                 lambda p, p0: 0.5 * jnp.sum((p - p0) ** 2),
@@ -44,11 +44,13 @@ class iMAML(MAML):
             stepsize=self.alpha,
             maxiter=self.num_steps,
             tol=float('inf'),
+            acceleration=False,
             implicit_diff=True,
             implicit_diff_solve=implicit_diff_solve,
             has_aux=True,
-            unroll=False
+            jit=True,
+            unroll=False,
         )
-        params, state = solver.run(init_params)
+        params, state = solver.run(init_params, init_params)
 
-        return (params, state.aux)
+        return (params, state.aux[1])
