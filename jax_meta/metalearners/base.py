@@ -1,8 +1,8 @@
 import jax.numpy as jnp
 import optax
+import jax
 
 from abc import ABC, abstractmethod
-from jax import jit, grad, tree_util, vmap, random
 from functools import partial
 from collections import namedtuple
 
@@ -13,6 +13,12 @@ MetaLearnerState = namedtuple('MetaLearnerState', ['model', 'optimizer', 'key'])
 class MetaLearner(ABC):
     def __init__(self):
         self._optimizer = None
+        self.__step = None
+
+        self._batch_outer_loss = jax.jit(
+            self.batch_outer_loss,
+            static_argnums=(4,)
+        )
 
     @abstractmethod
     def loss(self, params, state, inputs, targets, args):
@@ -26,9 +32,6 @@ class MetaLearner(ABC):
     def meta_init(self, key, *args, **kwargs):
         pass
 
-    def step(self, params, state, train, test, *args):
-        return self.train_step(params, state, train, test, args)
-
     def outer_loss(self, params, state, train, test, args):
         adapted_params, inner_logs = self.adapt(
             params, state, train.inputs, train.targets, args
@@ -38,9 +41,8 @@ class MetaLearner(ABC):
         )
         return (outer_loss, state, inner_logs, outer_logs)
 
-    @partial(jit, static_argnums=(0, 5))
     def train_step(self, params, state, train, test, args):
-        outer_loss_grad = grad(self.batch_outer_loss, has_aux=True)
+        outer_loss_grad = jax.grad(self.batch_outer_loss, has_aux=True)
         grads, (model_state, logs) = outer_loss_grad(
             params, state.model, train, test, args)
 
@@ -54,19 +56,28 @@ class MetaLearner(ABC):
         return params, state, logs
 
     @property
+    def _step(self):
+        if self.__step is None:
+            # Only compile the training step function once
+            self.__step = jax.jit(self.train_step, static_argnums=(4,))
+        return self.__step
+
+    def step(self, params, state, train, test, *args):
+        return self._step(params, state, train, test, args)
+
+    @property
     def optimizer(self):
         if self._optimizer is None:
             raise ValueError(f'`{self:s}` contains no optimizer. To train the'
                              'model, you must call the `init` function.')
         return self._optimizer
 
-    @partial(jit, static_argnums=(0, 5))
     def batch_outer_loss(self, params, state, train, test, args):
-        outer_loss = vmap(self.outer_loss, in_axes=(None, None, 0, 0, None))
+        outer_loss = jax.vmap(self.outer_loss, in_axes=(None, None, 0, 0, None))
         outer_losses, states, inner_logs, outer_logs = outer_loss(
             params, state, train, test, args
         )
-        state = tree_util.tree_map(partial(jnp.mean, axis=0), states)
+        state = jax.tree_util.tree_map(partial(jnp.mean, axis=0), states)
 
         logs = {
             **{f'inner/{k}': v for (k, v) in inner_logs.items()},
@@ -76,7 +87,7 @@ class MetaLearner(ABC):
 
     def init(self, key, optimizer, *args, **kwargs):
         self._optimizer = optimizer
-        key, subkey = random.split(key)
+        key, subkey = jax.random.split(key)
         params, model_state = self.meta_init(subkey, *args, **kwargs)
         state = MetaLearnerState(
             model=model_state,
@@ -93,19 +104,20 @@ class MetaLearner(ABC):
 
         results = None
         for i, batch in enumerate(dataset.reset()):
-            _, (_, logs) = self.batch_outer_loss(
+            _, (_, logs) = self._batch_outer_loss(
                 params,
                 state.model,
                 batch['train'],
                 batch['test'],
                 args
             )
-            logs = tree_util.tree_map(lambda arr: jnp.mean(arr, axis=0), logs)
+            logs = jax.tree_util.tree_map(
+                lambda arr: jnp.mean(arr, axis=0), logs)
 
             if results is None:
                 results = logs
             else:
                 online_mean = lambda mean, arr: mean + ((arr - mean) / (i + 1))
-                results = tree_util.tree_map(online_mean, results, logs)
+                results = jax.tree_util.tree_map(online_mean, results, logs)
 
         return results
