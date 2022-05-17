@@ -122,7 +122,7 @@ class MetaDataset(ABC):
 
     @property
     def dummy_input(self):
-        return self.transform(np.zeros((1,) + self.data.shape[1:], dtype=np.uint8))
+        return self.transform(np.zeros_like(self.data[:1]))
 
     def flatten(self, num_epochs=1):
         return FlattenDataset(self, num_epochs=num_epochs)
