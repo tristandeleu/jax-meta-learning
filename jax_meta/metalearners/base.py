@@ -13,7 +13,7 @@ MetaLearnerState = namedtuple('MetaLearnerState', ['model', 'optimizer', 'key'])
 class MetaLearner(ABC):
     def __init__(self):
         self._optimizer = None
-        self.__step = None
+        self._train_step = None
 
         self._batch_outer_loss = jax.jit(
             self.batch_outer_loss,
@@ -57,10 +57,10 @@ class MetaLearner(ABC):
 
     @property
     def _step(self):
-        if self.__step is None:
+        if self._train_step is None:
             # Only compile the training step function once
-            self.__step = jax.jit(self.train_step, static_argnums=(4,))
-        return self.__step
+            self._train_step = jax.jit(self.train_step, static_argnums=(4,))
+        return self._train_step
 
     def step(self, params, state, train, test, *args):
         return self._step(params, state, train, test, args)
