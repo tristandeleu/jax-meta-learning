@@ -27,6 +27,7 @@ class Omniglot(MetaDataset):
             size=None,
             split='train',
             seed=0,
+            data_augmentation=False,
             download=False
         ):
         super().__init__(root, batch_size, shots=shots, ways=ways,
