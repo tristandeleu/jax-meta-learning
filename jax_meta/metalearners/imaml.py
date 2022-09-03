@@ -49,7 +49,7 @@ class iMAML(MAML):
 
         def _hvp_damping(tangents):
             damping = lambda h, t: (1. + self.regu_coef) * t + h / (self.lambda_ + self.cg_damping)
-            return tree_util.tree_multimap(damping, hvp_fn(tangents), tangents)
+            return tree_util.tree_map(damping, hvp_fn(tangents), tangents)
 
         return _hvp_damping
 
@@ -91,6 +91,5 @@ class iMAML(MAML):
         updates, opt_state = self.optimizer.update(grads, state.optimizer, params)
         params = optax.apply_updates(params, updates)
 
-        state = MetaLearnerState(model=model_state, optimizer=opt_state)
-
+        state = MetaLearnerState(model=model_state, optimizer=opt_state, key=state.key)
         return params, state, logs

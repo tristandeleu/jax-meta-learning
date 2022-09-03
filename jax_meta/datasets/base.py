@@ -97,6 +97,7 @@ class MetaDataset(ABC):
 
     def __iter__(self):
         shape = self.data.shape[1:]
+        self.num_samples = 0
 
         while (self.size is None) or (self.num_samples < self.size):
             class_indices, indices, targets = self.get_indices()
